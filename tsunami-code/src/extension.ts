@@ -17,12 +17,13 @@ export function activate(context: vscode.ExtensionContext) {
         return;
     }
 
-    if (!fs.existsSync(path.join(projectRoot, "tsconfig.json"))) {
-        console.log("Aborting tsunami initialization: couldn't find tsconfig at ", path.join(projectRoot, "tsconfig.json"));
+    const tsconfigPath = path.join(projectRoot, "tsconfig.json");
+    if (!fs.existsSync(tsconfigPath)) {
+        console.log("Aborting tsunami initialization: couldn't find tsconfig at ", tsconfigPath);
         return;
     }
 
-    const settings = JSON.parse(fs.readFileSync(path.join(projectRoot, "tsconfig.json")).toString());
+    const settings = JSON.parse(fs.readFileSync(tsconfigPath).toString());
 
     const tsunami = new tsu.Tsunami(
         new tsu.TsProject(projectRoot, settings)
