@@ -9,7 +9,7 @@ import { TsunamiCodeActionProvider } from "./plugins/TsunamiCodeActionProvider";
 import { TsunamiCodeCompletionProvider } from "./plugins/TsunamiCodeCompletionProvider";
 import { TsunamiRelativeModuleWatcher } from "./plugins/TsunamiRelativeModuleWatcher";
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
     const projectRoot = vscode.workspace.rootPath;
     console.log("Activating!");
 
@@ -24,10 +24,12 @@ export function activate(context: vscode.ExtensionContext) {
         return;
     }
 
-    const settings = JSON.parse(fs.readFileSync(tsconfigPath).toString());
-
+    const project = await tsu.TsProject.fromRootDir(projectRoot);
     const tsunami = new tsu.Tsunami(
-        new tsu.TsProject(projectRoot, settings)
+        project,
+        {
+            indentSize: 2
+        }
     );
 
     const extension = new TsunamiExtension(
@@ -47,9 +49,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     extension.bindToContext(context);
 
-    tsunami.buildInitialProjectIndex()
-        .then(() => vscode.window.setStatusBarMessage("[tsunami] $(thumbsup) Done indexing: " + path.basename(projectRoot), 3000))
-        .catch(e => console.error(e));
+
+    try {
+        await tsunami.buildInitialProjectIndex();
+        vscode.window.setStatusBarMessage("[tsunami] $(thumbsup) Done indexing: " + path.basename(projectRoot), 3000);
+    } catch (err) {
+        console.error(err);
+    }
 }
 
 export function deactivate() {
