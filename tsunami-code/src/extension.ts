@@ -7,6 +7,7 @@ import { ImportSymbolCommand } from "./commands/ImportSymbolCommand";
 import { ReindexProjectCommand } from "./commands/ReindexProjectCommand";
 import { TsunamiCodeActionProvider } from "./plugins/TsunamiCodeActionProvider";
 import { TsunamiCodeCompletionProvider } from "./plugins/TsunamiCodeCompletionProvider";
+import { TsunamiRelativeModuleWatcher } from "./plugins/TsunamiRelativeModuleWatcher";
 
 export function activate(context: vscode.ExtensionContext) {
     const projectRoot = vscode.workspace.rootPath;
@@ -33,11 +34,13 @@ export function activate(context: vscode.ExtensionContext) {
         tsunami.getContext(),
         [
             new TsunamiCodeCompletionProvider(tsunami.getContext()),
-            new TsunamiCodeActionProvider()
+            new TsunamiCodeActionProvider(),
+            new TsunamiRelativeModuleWatcher(tsunami.getContext()),
         ],
         [
             new ReindexProjectCommand(tsunami)
-        ], [
+        ],
+        [
             new ImportSymbolCommand(tsunami.getContext())
         ]
     );
