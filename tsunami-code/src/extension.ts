@@ -49,7 +49,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
     extension.bindToContext(context);
 
-
     try {
         await tsunami.buildInitialProjectIndex();
         vscode.window.setStatusBarMessage("[tsunami] $(thumbsup) Done indexing: " + path.basename(projectRoot), 3000);

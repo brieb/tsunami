@@ -23,3 +23,4 @@ export * from "./imports/ImportBlockBuilder";
 export * from "./imports/ImportEditor";
 export * from "./imports/ImportStatement";
 export * from "./imports/SimpleImportBlockFormatter";
+export * from "./formatting/FormatOptions";
