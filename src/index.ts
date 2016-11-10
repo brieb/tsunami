@@ -21,4 +21,5 @@ export * from "./utilities/ioUtils";
 export * from "./imports/ImportBlock";
 export * from "./imports/ImportBlockBuilder";
 export * from "./imports/ImportEditor";
+export * from "./imports/ImportStatement";
 export * from "./imports/SimpleImportBlockFormatter";
