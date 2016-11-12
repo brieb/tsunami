@@ -1,7 +1,7 @@
-import * as vs from "vscode";
 import * as path from "path";
 import * as ts from "typescript";
-import { CodeEditGroup, TsunamiContext } from "@derander/tsunami";
+import * as vs from "vscode";
+import { CodeEditGroup, TsunamiContext, applyCodeEdits } from "@derander/tsunami";
 import { FsMoveEvent, FsMoveEventType } from "./FsMoveEvent";
 import { filenameToModuleSpecifier } from "./filenameToModuleSpecifier";
 import { MovedModuleSpecifier, rewriteImports } from "./rewriteImports";
@@ -61,22 +61,26 @@ export class FsMoveHandler {
     }
 
     private async applyEdits(editGroups: CodeEditGroup[]) {
-        const workspaceEdit = new vs.WorkspaceEdit();
-        for (let editGroup of editGroups) {
-            const uri = vs.Uri.file(editGroup.file);
-            workspaceEdit.set(uri, editGroup.edits.map(edit => new vs.TextEdit(new vs.Range(
-                edit.start.line - 1,
-                edit.start.offset - 1,
-                edit.end.line - 1,
-                edit.end.offset - 1
-            ), edit.newText)));
-        }
+        // const workspaceEdit = new vs.WorkspaceEdit();
+        // for (let editGroup of editGroups) {
+        //     const uri = vs.Uri.file(editGroup.file);
+        //     workspaceEdit.set(uri, editGroup.edits.map(edit => new vs.TextEdit(new vs.Range(
+        //         edit.start.line - 1,
+        //         edit.start.offset - 1,
+        //         edit.end.line - 1,
+        //         edit.end.offset - 1
+        //     ), edit.newText)));
+        // }
 
         // const textDocuments = await Promise.all(editGroups.map(e => vs.workspace.openTextDocument(e.file)));
         // await vs.workspace.applyEdit(workspaceEdit);
         // await Promise.all(textDocuments.map(textDocument => textDocument.save()));
 
-        await vs.workspace.applyEdit(workspaceEdit);
-        await vs.workspace.saveAll(false);
+        // await vs.workspace.applyEdit(workspaceEdit);
+        // await vs.workspace.saveAll(false);
+
+        return Promise.all(editGroups.map(async (editGroup) => {
+            await applyCodeEdits(editGroup.file, editGroup.edits);
+        }));
     }
 }
