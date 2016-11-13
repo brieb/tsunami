@@ -19,35 +19,59 @@ export class TsunamiImplDefinitionProvider implements TsunamiPlugin {
 class ImplDefinitionProvider implements vs.DefinitionProvider {
     constructor(private context: TsunamiContext) { }
 
+    private didExecuteDefinitionProvider: boolean = false;
+
     public async provideDefinition(
         document: vs.TextDocument,
         position: vs.Position,
         token: vs.CancellationToken
     ): Promise<vs.Definition | null> {
         try {
-            return this.provideDefinitionHelper(document, position);
+            if (this.didExecuteDefinitionProvider) {
+                return null;
+            }
+
+            this.didExecuteDefinitionProvider = true;
+            const extLocations: vs.Location[] = await vs.commands.executeCommand(
+                "vscode.executeDefinitionProvider", document.uri, position) as vs.Location[];
+            this.didExecuteDefinitionProvider = false;
+
+            return this.provideDefinitionHelper(document, position, extLocations);
         } catch (err) {
             console.error(err);
             return null;
         }
     }
 
-    private async provideDefinitionHelper(document: vs.TextDocument, position: vs.Position) {
+    private async provideDefinitionHelper(document: vs.TextDocument, position: vs.Position, extLocations: vs.Location[]) {
         const wordRange = document.getWordRangeAtPosition(position);
         if (!wordRange) {
             return null;
         }
-
         const word = document.getText(wordRange);
+
         const fileNames = await this.context.getProject().getFileNames();
         const sourceFiles = await Promise.all(fileNames.map(fileName => this.context.getSourceFileFor(fileName)));
+        const interfaceSourceFiles = filterSourceFilesByExtLocations(sourceFiles, extLocations);
 
-        const signatures = collectMatchingInterfaceSignatures(sourceFiles, { symbolName: word });
+        const signatures = collectMatchingInterfaceSignatures(interfaceSourceFiles, { symbolName: word });
         const interfaceNames = getInterfaceNamesForSignatures(signatures);
         const declarations = collectMatchingClassDeclarations(sourceFiles, { symbolName: word, implementsSomeInterface: interfaceNames });
         const locations = convertDeclarationsToLocations(declarations);
+
         return locations;
     }
+}
+
+function filterSourceFilesByExtLocations(sourceFiles: ts.SourceFile[], extLocations: vs.Location[]): ts.SourceFile[] {
+    return sourceFiles.filter(sourceFile => {
+        for (let extLocation of extLocations) {
+            if (extLocation.uri.fsPath === sourceFile.fileName) {
+                return true;
+            }
+        }
+        return false;
+    });
 }
 
 type Signature = ts.PropertySignature | ts.MethodSignature;
@@ -162,27 +186,4 @@ function convertDeclarationsToLocations(declarations: Declaration[]): vs.Locatio
         locations.push(new vs.Location(uri, range));
     });
     return locations;
-}
-
-function getNarrowestNodeAtPos(node: ts.Node, pos: number): ts.Node {
-    const children = collectChildren(node);
-    if (children.length === 0) {
-        return node;
-    }
-
-    const child = children.find(child => child.pos <= pos && pos < child.end);
-    if (!child) {
-        // throw "could not find matching child for pos " + pos;
-        return node;
-    }
-
-    return getNarrowestNodeAtPos(child, pos);
-}
-
-function collectChildren(node: ts.Node): ts.Node[] {
-    const children: ts.Node[] = [];
-    ts.forEachChild(node, child => {
-        children.push(child);
-    });
-    return children;
 }
