@@ -8,6 +8,7 @@ import { ReindexProjectCommand } from "./commands/ReindexProjectCommand";
 import { TsunamiCodeActionProvider } from "./plugins/TsunamiCodeActionProvider";
 import { TsunamiCodeCompletionProvider } from "./plugins/TsunamiCodeCompletionProvider";
 import { TsunamiRelativeModuleWatcher } from "./plugins/TsunamiRelativeModuleWatcher";
+import { TsunamiImplDefinitionProvider } from "./plugins/TsunamiImplDefinitionProvider";
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const projectRoot = vscode.workspace.rootPath;
@@ -38,6 +39,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             new TsunamiCodeCompletionProvider(tsunami.getContext()),
             new TsunamiCodeActionProvider(),
             new TsunamiRelativeModuleWatcher(tsunami.getContext()),
+            new TsunamiImplDefinitionProvider(tsunami.getContext()),
         ],
         [
             new ReindexProjectCommand(tsunami)
