@@ -27,7 +27,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const project = await tsu.TsProject.fromRootDir(projectRoot);
     const tsunami = new tsu.Tsunami(
         project,
-        tsu.buildFormatOptions()
+        tsu.buildFormatOptions({
+            indentSize: 2
+        })
     );
 
     const extension = new TsunamiExtension(
