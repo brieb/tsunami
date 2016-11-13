@@ -7,26 +7,32 @@ import { Logger } from "./relative-module-watcher/Logger";
 import { FsMoveEventType } from "./relative-module-watcher/FsMoveEvent";
 
 export class TsunamiRelativeModuleWatcher implements TsunamiPlugin {
-    constructor(private context: TsunamiContext) { }
+    constructor(private tsuContext: TsunamiContext) { }
 
-    public bindToContext(context: vs.ExtensionContext): void {
+    public bindToContext(extContext: vs.ExtensionContext): void {
         const outputChannel = vs.window.createOutputChannel("TsunamiRelativeModuleWatcher");
         const logger: Logger = new Logger((message) => outputChannel.appendLine(message));
 
-        let watcher: FsMoveWatcher;
-        const handler: FsMoveHandler = new FsMoveHandler(this.context, logger);
+        // TODO don't hard code glob
+        const fsWatcher = vs.workspace.createFileSystemWatcher("**/src/**", false, true, false);
+        fsWatcher.onDidCreate(() => this.tsuContext.getProject().invalidate());
+        fsWatcher.onDidDelete(() => this.tsuContext.getProject().invalidate());
 
-        context.subscriptions.push({
+        let moveWatcher: FsMoveWatcher;
+        const handler: FsMoveHandler = new FsMoveHandler(this.tsuContext, logger);
+
+        extContext.subscriptions.push({
             dispose: () => {
                 logger.log("dispose");
                 outputChannel.dispose();
-                if (watcher) {
-                    watcher.dispose();
+                if (moveWatcher) {
+                    moveWatcher.dispose();
                 }
+                fsWatcher.dispose();
             }
         });
 
-        watcher = new FsMoveWatcher({
+        moveWatcher = new FsMoveWatcher({
             onDidMove: async (event) => {
                 try {
                     logger.log(`### started move ${event.from.fsPath} ${event.to.fsPath} ${FsMoveEventType[event.type]}`);
