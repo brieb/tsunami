@@ -1,22 +1,27 @@
 import * as fs from "fs";
 import * as path from "path";
-import * as ts from "typescript";
 import {
     CodeEditGroup,
     ImportBlockBuilder,
     ImportEditor,
     ImportStatementType,
     ModuleSpecifier,
-    SimpleImportBlockFormatter
+    SimpleImportBlockFormatter,
 } from "@derander/tsunami";
 import { filenameToModuleSpecifier } from "./filenameToModuleSpecifier";
+import { Logger } from "./Logger";
+import { loadSourceFiles } from "./loadSourceFiles";
 
 export interface MovedModuleSpecifier {
     from: ModuleSpecifier;
     to: ModuleSpecifier;
 }
 
-export function rewriteImports(sourceFiles: ts.SourceFile[], movedModuleSpecifiers: MovedModuleSpecifier[]): CodeEditGroup[] {
+export async function rewriteImports(
+    projFileNames: string[],
+    movedModuleSpecifiers: MovedModuleSpecifier[],
+    logger: Logger,
+): Promise<CodeEditGroup[]> {
     const editGroups: CodeEditGroup[] = [];
     const editor = new ImportEditor(new SimpleImportBlockFormatter());
 
@@ -27,7 +32,13 @@ export function rewriteImports(sourceFiles: ts.SourceFile[], movedModuleSpecifie
         movedModuleToFrom[moved.to] = moved.from;
     }
 
-    for (let sourceFile of sourceFiles) {
+    logger.time("load source files");
+    const projSourceFiles = await loadSourceFiles(projFileNames);
+    logger.timeEnd("load source files");
+
+    for (let sourceFile of projSourceFiles) {
+        logger.log("started processing", sourceFile.fileName);
+
         let didUpdateImports: boolean = false;
 
         const moduleSpecifier: ModuleSpecifier = filenameToModuleSpecifier(sourceFile.fileName);
@@ -46,6 +57,7 @@ export function rewriteImports(sourceFiles: ts.SourceFile[], movedModuleSpecifie
             const to = movedModuleFromTo[record.moduleSpecifier];
             newBlockBuilder.renameModule(from, to);
             didUpdateImports = true;
+            logger.log("  renaming", from, to);
         }
 
         const wasSelfMoved = movedModuleToFrom[moduleSpecifier] !== undefined;
@@ -63,15 +75,21 @@ export function rewriteImports(sourceFiles: ts.SourceFile[], movedModuleSpecifie
                 if (fs.existsSync(recordAbs + ".ts") || fs.existsSync(recordAbs + ".tsx")) {
                     newBlockBuilder.renameModule(record.moduleSpecifier, recordAbs);
                     didUpdateImports = true;
+                    logger.log("  renaming", record.moduleSpecifier, recordAbs);
+                } else {
+                    logger.log("  ignoring - could not find module", record.moduleSpecifier);
                 }
-
             }
         }
 
         if (didUpdateImports) {
             const edits = editor.applyImportBlockToFile(sourceFile, newBlockBuilder.build());
             editGroups.push({ file: sourceFile.fileName, edits });
+        } else {
+            logger.log("  nothing to do");
         }
+
+        logger.log("done processing", sourceFile.fileName);
     }
 
     return editGroups;

@@ -1,49 +1,60 @@
 import * as path from "path";
-import * as ts from "typescript";
 import * as vs from "vscode";
 import { CodeEditGroup, TsunamiContext, applyCodeEdits } from "@derander/tsunami";
 import { FsMoveEvent, FsMoveEventType } from "./FsMoveEvent";
 import { filenameToModuleSpecifier } from "./filenameToModuleSpecifier";
 import { MovedModuleSpecifier, rewriteImports } from "./rewriteImports";
+import { Logger } from "./Logger";
 
 export class FsMoveHandler {
-    constructor(private context: TsunamiContext) { }
+    constructor(
+        private context: TsunamiContext,
+        private logger: Logger,
+    ) { }
 
     public async handleMove(event: FsMoveEvent) {
-        console.log("handleMove", event.from.fsPath, event.to.fsPath, FsMoveEventType[event.type]);
+        await vs.workspace.saveAll(false);
+        const projFileNames = await this.context.getProject().getFileNames();
 
-        const fileNames = await this.context.getProject().getFileNames();
-        const projSourceFiles = await Promise.all(fileNames.map(file => this.context.getSourceFileFor(file)));
+        vs.window.setStatusBarMessage(`$(squirrel) moved ${event.to.fsPath} - on it`, 2000);
 
         if (event.type === FsMoveEventType.FILE) {
-            await this.handleFileMoves([event], projSourceFiles);
+            await this.handleFileMoves([event], projFileNames);
         } else if (event.type === FsMoveEventType.FOLDER) {
-            await this.handleFolderMove(event, projSourceFiles);
+            await this.handleFolderMove(event, projFileNames);
         }
     }
 
-    private async handleFileMoves(events: FsMoveEvent[], projSourceFiles: ts.SourceFile[]) {
+    private async handleFileMoves(events: FsMoveEvent[], projFileNames: string[]) {
         const movedModuleSpecifiers: MovedModuleSpecifier[] = events.map(event => ({
             from: filenameToModuleSpecifier(event.from.fsPath),
             to: filenameToModuleSpecifier(event.to.fsPath),
         }));
 
-        const editGroups: CodeEditGroup[] = rewriteImports(projSourceFiles, movedModuleSpecifiers);
-        await this.applyEdits(editGroups);
+        this.logger.time("rewrite imports");
+        const editGroups: CodeEditGroup[] = await rewriteImports(projFileNames, movedModuleSpecifiers, this.logger);
+        this.logger.timeEnd("rewrite imports");
 
-        return Promise.all(events.map(async (event) => {
+        this.logger.time("apply edits");
+        await this.applyEdits(editGroups);
+        this.logger.timeEnd("apply edits");
+
+        vs.window.setStatusBarMessage(`$(thumbsup) rewrote rel imports. reindexing...`, 2000);
+
+        this.logger.log(`reindexing ${events.length} moved files`);
+        this.logger.time("reindex");
+        await Promise.all(events.map(async (event) => {
             this.context.fileIndexerMap.delete(event.from.fsPath);
             await this.context.reloadFile(event.to.fsPath);
-            return;
         }));
+        this.logger.timeEnd("reindex");
     }
 
-    private async handleFolderMove(event: FsMoveEvent, projSourceFiles: ts.SourceFile[]) {
+    private async handleFolderMove(event: FsMoveEvent, projFileNames: string[]) {
         const fromFolderPath = event.from.fsPath;
         const toFolderPath = event.to.fsPath;
 
-        const movedFileNames = projSourceFiles
-            .map(sourceFile => sourceFile.fileName)
+        const movedFileNames = projFileNames
             .filter(fileName => fileName.startsWith(event.to.fsPath + path.sep));
 
         const fileMoveEvents: FsMoveEvent[] = movedFileNames.map(toFileName => {
@@ -57,7 +68,7 @@ export class FsMoveHandler {
             };
         });
 
-        return this.handleFileMoves(fileMoveEvents, projSourceFiles);
+        return this.handleFileMoves(fileMoveEvents, projFileNames);
     }
 
     private async applyEdits(editGroups: CodeEditGroup[]) {
