@@ -3,6 +3,7 @@ import { FsEventBatcher } from "./FsEventBatcher";
 import { FsEvent, FsEventType } from "./FsEvent";
 import { FsMoveEvent } from "./FsMoveEvent";
 import { extractFsMoveEvent } from "./extractFsMoveEvent";
+import { Logger } from "./Logger";
 
 export interface FsMoveListener {
     onDidMove(event: FsMoveEvent): void;
@@ -13,7 +14,10 @@ export class FsMoveWatcher {
     private eventDisposables: vs.Disposable[];
     private eventBatcher: FsEventBatcher;
 
-    constructor(private listener: FsMoveListener) {
+    constructor(
+        private listener: FsMoveListener,
+        private logger: Logger,
+    ) {
         this.eventBatcher = new FsEventBatcher((events) => this.onDidReceiveEvents(events));
         // TODO configurable glob
         this.fsWatcher = vs.workspace.createFileSystemWatcher("**/src/**", false, true, false);
@@ -37,7 +41,7 @@ export class FsMoveWatcher {
     }
 
     private onDidReceiveEvents(events: FsEvent[]) {
-        const moveEvent = extractFsMoveEvent(events);
+        const moveEvent = extractFsMoveEvent(events, this.logger);
         if (moveEvent) {
             this.listener.onDidMove(moveEvent);
         }

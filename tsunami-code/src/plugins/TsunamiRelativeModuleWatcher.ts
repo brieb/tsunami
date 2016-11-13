@@ -30,15 +30,16 @@ export class TsunamiRelativeModuleWatcher implements TsunamiPlugin {
             onDidMove: async (event) => {
                 try {
                     logger.log(`### started move ${event.from.fsPath} ${event.to.fsPath} ${FsMoveEventType[event.type]}`);
-                    logger.time(`time taken ${event.from.fsPath} ${event.to.fsPath}`);
+                    const timerLabel = `time taken ${event.from.fsPath} ${event.to.fsPath} ${Date.now()}`;
+                    logger.time(timerLabel);
                     await handler.handleMove(event);
-                    logger.timeEnd(`time taken ${event.from.fsPath} ${event.to.fsPath}`);
+                    logger.timeEnd(timerLabel);
                     logger.log(`### finished move ${event.from.fsPath} ${event.to.fsPath} ${FsMoveEventType[event.type]}\n`);
                 } catch (err) {
                     logger.error(err);
                 }
             }
-        });
+        }, logger);
         logger.log("watching files");
     }
 }

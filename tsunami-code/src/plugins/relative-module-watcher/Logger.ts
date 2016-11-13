@@ -23,12 +23,21 @@ export class Logger {
         this.write("[ERROR] " + message);
     }
 
-    public time(label: string): void {
+    public warn(message: string) {
+        this.write("[WARNING] " + message);
+    }
+
+    public time(label: string, ...messages: any[]): void {
         if (this.timers[label]) {
             throw "already have timer for " + label;
         }
 
         this.timers[label] = Date.now().valueOf();
+        if (messages.length > 0) {
+            this.log("timer started", label, messages);
+        } else {
+            this.log("timer started", label);
+        }
     }
 
     public timeEnd(label: string) {
@@ -38,6 +47,6 @@ export class Logger {
 
         const duration = Date.now().valueOf() - this.timers[label];
         delete this.timers[label];
-        this.write(label + " " + duration + "ms");
+        this.write("timer finished " + label + " " + duration + "ms");
     }
 }

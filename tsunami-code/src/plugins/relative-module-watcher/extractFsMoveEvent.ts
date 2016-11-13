@@ -3,9 +3,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { FsEvent, FsEventType } from "./FsEvent";
 import { FsMoveEvent, FsMoveEventType } from "./FsMoveEvent";
+import { Logger } from "./Logger";
 
 // Try to match up creation and deletion pairs as moves
-export function extractFsMoveEvent(events: FsEvent[]): FsMoveEvent | void {
+export function extractFsMoveEvent(events: FsEvent[], logger: Logger): FsMoveEvent | void {
     events = sortBy(events, event => event.uri.fsPath);
 
     const createdFolders: { [folder: string]: boolean } = {};
@@ -46,7 +47,7 @@ export function extractFsMoveEvent(events: FsEvent[]): FsMoveEvent | void {
     });
 
     if (folderCreationEvents.length > 0 && fileCreationEvents.length > 0) {
-        console.warn("cannot handle simultaneous file and folder move");
+        logger.warn("cannot handle simultaneous file and folder move");
         return;
     }
 
@@ -56,7 +57,7 @@ export function extractFsMoveEvent(events: FsEvent[]): FsMoveEvent | void {
     }
 
     if (creationEvents.length !== 1) {
-        console.warn("cannot handle moving more than one file or folder at a time");
+        logger.warn("cannot handle moving more than one file or folder at a time");
         return;
     }
 

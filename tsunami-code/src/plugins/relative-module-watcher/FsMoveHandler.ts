@@ -7,16 +7,55 @@ import { MovedModuleSpecifier, rewriteImports } from "./rewriteImports";
 import { Logger } from "./Logger";
 
 export class FsMoveHandler {
+    private isPending: boolean;
+    private eventQueue: {
+        event: FsMoveEvent;
+        resolve: Function;
+    }[] = [];
+
     constructor(
         private context: TsunamiContext,
         private logger: Logger,
     ) { }
 
     public async handleMove(event: FsMoveEvent) {
+        vs.window.setStatusBarMessage(`$(squirrel) moved ${event.to.fsPath} - on it`, 2000);
+        const promise = new Promise((resolve) => {
+            this.eventQueue.push({ event, resolve });
+        });
+        this.flush();
+        return promise;
+    }
+
+    private async flush() {
+        if (this.isPending) {
+            this.logger.log("pending move");
+            return;
+        }
+
+        const item = this.eventQueue.shift();
+        if (!item) {
+            this.logger.log("no more move events");
+            return;
+        }
+
+        this.isPending = true;
+
+        const { event, resolve } = item;
+        const logLabel = `handling ${event.from.fsPath} ${event.to.fsPath} ${FsMoveEventType[event.type]} ${Date.now()}`;
+        this.logger.time(logLabel);
+        await this.handleMoveInternal(event);
+        this.logger.timeEnd(logLabel);
+        resolve();
+
+        this.isPending = false;
+
+        this.flush();
+    }
+
+    private async handleMoveInternal(event: FsMoveEvent) {
         await vs.workspace.saveAll(false);
         const projFileNames = await this.context.getProject().getFileNames();
-
-        vs.window.setStatusBarMessage(`$(squirrel) moved ${event.to.fsPath} - on it`, 2000);
 
         if (event.type === FsMoveEventType.FILE) {
             await this.handleFileMoves([event], projFileNames);
