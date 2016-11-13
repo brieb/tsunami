@@ -18,7 +18,7 @@ const MOVE_SYMBOL = new MoveSymbolCommandDefinition();
 process.on("uncaughtException", (err: Error) => {
     console.error(err);
     process.exit(1);
-})
+});
 
 async function startRepl() {
     const projectRoot = process.argv[2];
@@ -40,6 +40,22 @@ async function processSearch(context: TsunamiContext, query: string) {
     results.slice(0, 10).map(it => it.text).forEach(it => {
         console.log(it);
     });
+}
+
+async function processReloadAllFiles(context: TsunamiContext) {
+    console.log("reloading all files");
+    const project = context.getProject();
+    const filenames = await project.getFileNames();
+    return Promise.all(filenames.map(async (filename) => {
+        console.time(filename);
+        await context.reloadFile(filename);
+        console.timeEnd(filename);
+    }));
+}
+
+async function processReloadFile(context: TsunamiContext, fileName: string) {
+    console.log("reloading file", fileName);
+    await context.reloadFile(fileName);
 }
 
 async function processTypeQuery(context: TsunamiContext, fileName: string, pos: number) {
@@ -167,6 +183,8 @@ async function processCommand(context: TsunamiContext, commandLineArgs: string[]
         const [commandName, ...args] = commandLineArgs;
         switch (commandName) {
         case "c": await processSearch(context, args[0]); break;
+        case "rfa": await processReloadAllFiles(context); break;
+        case "rf": await processReloadFile(context, args[0]); break;
         case "t": await processTypeQuery(context, args[0], parseInt(args[1], 10)); break;
         case "d": await processGetDiagnostics(context, args[0]); break;
         case "m": await processMoveSymbol(context, args[0], args[1], args[2]); break;
