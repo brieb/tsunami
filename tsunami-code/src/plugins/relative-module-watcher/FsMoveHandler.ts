@@ -80,12 +80,12 @@ export class FsMoveHandler {
 
         vs.window.setStatusBarMessage(`$(thumbsup) rewrote rel imports. reindexing...`, 2000);
 
-        this.logger.log(`reindexing ${events.length} moved files`);
         this.logger.time("reindex");
         await Promise.all(events.map(async (event) => {
             this.context.fileIndexerMap.delete(event.from.fsPath);
             await this.context.reloadFile(event.to.fsPath);
         }));
+        // await vs.commands.executeCommand("tsunami.reindexProject");
         this.logger.timeEnd("reindex");
     }
 

@@ -37,8 +37,6 @@ export async function rewriteImports(
     logger.timeEnd("load source files");
 
     for (let sourceFile of projSourceFiles) {
-        logger.log("started processing", sourceFile.fileName);
-
         let didUpdateImports: boolean = false;
 
         const moduleSpecifier: ModuleSpecifier = filenameToModuleSpecifier(sourceFile.fileName);
@@ -57,7 +55,7 @@ export async function rewriteImports(
             const to = movedModuleFromTo[record.moduleSpecifier];
             newBlockBuilder.renameModule(from, to);
             didUpdateImports = true;
-            logger.log("  renaming", from, to);
+            logger.log(`[${sourceFile.fileName}]  renaming ${from} ${to}`);
         }
 
         const wasSelfMoved = movedModuleToFrom[moduleSpecifier] !== undefined;
@@ -75,9 +73,9 @@ export async function rewriteImports(
                 if (fs.existsSync(recordAbs + ".ts") || fs.existsSync(recordAbs + ".tsx")) {
                     newBlockBuilder.renameModule(record.moduleSpecifier, recordAbs);
                     didUpdateImports = true;
-                    logger.log("  renaming", record.moduleSpecifier, recordAbs);
+                    logger.log(`[${sourceFile.fileName}] renaming ${record.moduleSpecifier} -> ${recordAbs}`);
                 } else {
-                    logger.log("  ignoring - could not find module", record.moduleSpecifier);
+                    logger.log(`[${sourceFile.fileName}] ignoring ${record.moduleSpecifier} - could not find module`);
                 }
             }
         }
@@ -85,11 +83,7 @@ export async function rewriteImports(
         if (didUpdateImports) {
             const edits = editor.applyImportBlockToFile(sourceFile, newBlockBuilder.build());
             editGroups.push({ file: sourceFile.fileName, edits });
-        } else {
-            logger.log("  nothing to do");
         }
-
-        logger.log("done processing", sourceFile.fileName);
     }
 
     return editGroups;
