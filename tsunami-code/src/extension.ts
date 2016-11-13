@@ -9,7 +9,7 @@ import { TsunamiCodeActionProvider } from "./plugins/TsunamiCodeActionProvider";
 import { TsunamiCodeCompletionProvider } from "./plugins/TsunamiCodeCompletionProvider";
 import { TsunamiRelativeModuleWatcher } from "./plugins/TsunamiRelativeModuleWatcher";
 
-export async function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const projectRoot = vscode.workspace.rootPath;
     console.log("Activating!");
 
@@ -27,9 +27,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const project = await tsu.TsProject.fromRootDir(projectRoot);
     const tsunami = new tsu.Tsunami(
         project,
-        {
-            indentSize: 2
-        }
+        tsu.buildFormatOptions()
     );
 
     const extension = new TsunamiExtension(
