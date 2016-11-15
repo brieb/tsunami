@@ -41,7 +41,9 @@
         "vscode:prepublish": "tsc -p ./",
         "publish-extension": "vsce publish",
         "compile": "tsc -watch -p ./",
-        "postinstall": "node ./node_modules/vscode/bin/install"
+        "postinstall": "node ./node_modules/vscode/bin/install && npm run tsu-copy",
+        "tsu-copy": "tsc -p ../ && rm -rf ./node_modules/@derander/tsunami/lib && cp -r ../lib/ ./node_modules/@derander/tsunami/lib",
+        "vs-install": "npm run tsu-copy && vsce package && rm -rf ~/.vscode/extensions/derander.tsunami-code-* && code --install-extension tsunami-code-*.vsix"
     },
     "devDependencies": {
         "@types/lodash": "^4.14.38",
